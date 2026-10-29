@@ -12,10 +12,10 @@ export default function Header({ isServerOnline, isCheckingServer, onCheckServer
           <div>
             <div className="brand-title-wrap">
               <h1 className="brand-title">TaskFlow MERN</h1>
-              <span className="badge-practical">Practical 6</span>
+              <span className="badge-practical">Practical 13</span>
             </div>
             <p className="brand-subtitle">
-              Full-Stack React + Node.js/Express + MongoDB Integration
+              Practical 13: AI API Integration into a Web Application
             </p>
           </div>
         </div>

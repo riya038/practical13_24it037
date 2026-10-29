@@ -1,13 +1,13 @@
 {
-  "name": "practical-6-task-manager-fullstack",
+  "name": "practical-13-ai-api-integration",
   "version": "1.0.0",
-  "description": "Full Stack MERN Task Manager for Practical 6",
+  "description": "Task Management Web Application with AI API Integration for Practical 13",
   "scripts": {
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "cd backend && npm install && cd ../frontend && npm install"
   },
-  "keywords": ["mern", "react", "express", "mongodb", "practical6"],
+  "keywords": ["mern", "react", "express", "mongodb", "ai-integration", "openai", "gemini", "practical13"],
   "author": "24IT037",
   "license": "ISC"
 }

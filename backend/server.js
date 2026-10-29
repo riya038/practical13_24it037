@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
+const OpenAI = require('openai');
 
 const Task = require('./models/Task');
 
@@ -60,16 +61,131 @@ app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message:
-      'Task Manager API is running smoothly for Practical 6 (Full Stack Integration)',
-    version: '1.0.0',
+      'Task Manager API running for Practical 13 (AI API Integration)',
+    version: '2.0.0',
     endpoints: {
       getAllTasks: 'GET /tasks',
       getTaskById: 'GET /tasks/:id',
       createTask: 'POST /tasks',
       updateTask: 'PUT /tasks/:id',
       deleteTask: 'DELETE /tasks/:id',
+      generateAIDescription: 'POST /api/ai/generate-description',
     },
   });
+});
+
+// ==========================================
+// PRACTICAL 13: AI API INTEGRATION ROUTE
+// POST /api/ai/generate-description
+// Auto-generates task description using OpenAI or Gemini
+// Implements server-side key protection, rate limiting & graceful degradation
+// ==========================================
+
+const aiRateLimitMap = new Map();
+const AI_RATE_LIMIT_MS = 60 * 1000; // 1 minute per task rate limit
+
+app.post(['/api/ai/generate-description', '/ai/generate-description'], async (req, res) => {
+  const { title } = req.body || {};
+
+  if (!title || typeof title !== 'string' || !title.trim()) {
+    return res.status(400).json({
+      description: '',
+      fallback: true,
+      error: 'Task title is required to generate description.',
+    });
+  }
+
+  const cleanTitle = title.trim();
+  const normalizedKey = cleanTitle.toLowerCase();
+  const now = Date.now();
+
+  // Rate limiting check (max 1 AI request per task per minute)
+  if (aiRateLimitMap.has(normalizedKey)) {
+    const lastTime = aiRateLimitMap.get(normalizedKey);
+    const elapsed = now - lastTime;
+    if (elapsed < AI_RATE_LIMIT_MS) {
+      const waitSeconds = Math.ceil((AI_RATE_LIMIT_MS - elapsed) / 1000);
+      return res.status(429).json({
+        description: '',
+        fallback: true,
+        rateLimited: true,
+        message: `Rate limit: Please wait ${waitSeconds}s before requesting AI description for this task again.`,
+      });
+    }
+  }
+
+  try {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+
+    let generatedDescription = '';
+
+    if (openaiKey && openaiKey !== 'your_key_here' && openaiKey.trim() !== '') {
+      const client = new OpenAI({ apiKey: openaiKey });
+      const completion = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: `Write a short task description for: ${cleanTitle}`,
+          },
+        ],
+        max_tokens: 150,
+      });
+
+      generatedDescription = completion.choices[0]?.message?.content?.trim() || '';
+    } else if (geminiKey && geminiKey !== 'your_key_here' && geminiKey.trim() !== '') {
+      // Direct fetch for Gemini API
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Write a concise 1-2 sentence task description for: ${cleanTitle}. Return only the description text.`,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Gemini API error ${response.status}: ${errText}`);
+      }
+
+      const geminiData = await response.json();
+      generatedDescription = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    } else {
+      // Graceful fallback when no key is configured
+      console.warn('⚠️ Practical 13: Neither OPENAI_API_KEY nor GEMINI_API_KEY configured in backend .env. Returning fallback.');
+      return res.status(200).json({
+        description: '',
+        fallback: true,
+        message: 'AI API key not configured in backend .env. Please enter a description manually.',
+      });
+    }
+
+    // Update rate limit timestamp on success
+    aiRateLimitMap.set(normalizedKey, now);
+
+    return res.status(200).json({
+      description: generatedDescription,
+      fallback: false,
+    });
+  } catch (err) {
+    console.error('⚠️ Practical 13 AI API Error (graceful fallback triggered):', err.message);
+    // Graceful degradation: return status 200 with fallback flag as specified in Practical 13
+    return res.status(200).json({
+      description: '',
+      fallback: true,
+      message: 'AI service unavailable or encountered an error. Core application continues working.',
+    });
+  }
 });
 
 // ==========================================

@@ -330,7 +330,7 @@ export default function App() {
       {/* Footer */}
       <footer className="app-footer">
         <p>
-          CHARUSAT • ITUE301 Advanced Web Development Frameworks • Practical 6 Full-Stack Solution
+          CHARUSAT • ITUE301 Advanced Web Development Frameworks • Practical 13: AI API Integration
         </p>
       </footer>
     </div>

@@ -93,3 +93,38 @@ export async function deleteTask(id) {
   }
   return data.data;
 }
+
+/**
+ * Practical 13: Auto-generate task description via Express backend
+ * The AI API key is stored server-side only in backend/.env, never exposed to client.
+ * Returns { description, fallback, rateLimited, message }
+ */
+export async function generateAiDescription(title) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/ai/generate-description`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title }),
+    });
+
+    const data = await res.json();
+    return {
+      status: res.status,
+      description: data.description || '',
+      fallback: Boolean(data.fallback),
+      rateLimited: Boolean(data.rateLimited),
+      message: data.message || '',
+    };
+  } catch (err) {
+    // Graceful degradation when network fails
+    return {
+      status: 500,
+      description: '',
+      fallback: true,
+      rateLimited: false,
+      message: 'Could not connect to backend AI endpoint. Please enter description manually.',
+    };
+  }
+}
